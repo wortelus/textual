@@ -3,6 +3,10 @@
 #
 
 import curses
+import math
+import pickle
+from os import makedirs
+from os.path import exists
 from random import sample
 
 import nltk
@@ -47,7 +51,20 @@ for char in blacklist_chars:
     cs = cs.replace(char, "")
 
 # Tokenization
-tokens = word_tokenize(cs, language)
+makedirs("cache_textgen", exist_ok=True)
+if exists("cache_textgen/tokenizer.pkl"):
+    print("Loading tokenizer...")
+    with open("cache_textgen/tokenizer.pkl", "rb") as pkl_file:
+        tokens = pickle.load(pkl_file)
+    print("Tokenizer loaded.")
+else:
+    print("Tokenizing...")
+    tokens = word_tokenize(cs, language)
+    # create and dump
+    with open("cache_textgen/tokenizer.pkl", "wb") as pkl_file:
+        pickle.dump(tokens, pkl_file)
+    print("Tokenization done.")
+
 # Vocab size
 token_counts = Counter(tokens)
 V = len(token_counts)
@@ -135,6 +152,36 @@ def trigram_suggestions(words):
 
     return suggestions
 
+def calculate_perplexity(input_text):
+    # Tokenize the current input text
+    words = word_tokenize(input_text, language)
+    if not words:
+        return float('inf')
+    total_tokens = len(tokens)  # Total tokens in the corpus (for unigram smoothing)
+    log_prob_sum = 0.0
+    perp_count = 0
+
+    # Calculate probability for the first word using unigram smoothing.
+    first_word = words[0]
+    p_prob = (token_counts.get(first_word, 0) + 1) / (total_tokens + V)
+    log_prob_sum += math.log(p_prob)
+    perp_count += 1
+
+    # For subsequent words, use bigram probabilities with Laplace smoothing.
+    for i in range(1, len(words)):
+        prev = words[i-1]
+        curr = words[i]
+        bigram_count = bigrams_counts.get((prev, curr), 0)
+        unigram_count = token_counts.get(prev, 0)
+        p_prob = (bigram_count + 1) / (unigram_count + V)
+        log_prob_sum += math.log(p_prob)
+        perp_count += 1
+
+    # Compute average log probability and convert to perplexity.
+    avg_log_prob = log_prob_sum / perp_count
+    perplexity = math.exp(-avg_log_prob)
+    return perplexity
+
 def main():
     line = 0
     while True:
@@ -166,8 +213,9 @@ def main():
             text.append(next_word)
 
         line += 1
-        print(f"{line}:")
-        print(" ".join(text))
+        full_text = " ".join(text)
+        print(f"{line} perplexity {calculate_perplexity(full_text)}:")
+        print(full_text)
         print("\n")
 
 if __name__ == "__main__":
