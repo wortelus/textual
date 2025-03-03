@@ -113,6 +113,8 @@ n = 1000
 common_starting_words = [word for word, freq in token_counts.most_common(n)]
 
 new_word_pool_size = 50
+
+
 def next_word_pool_size(last_word):
     if (len(last_word) == 1 or
             last_word.isdigit() or
@@ -136,6 +138,7 @@ def bigram_suggestions(words):
 
     return suggestions
 
+
 def trigram_suggestions(words):
     # Get the last word and try to generate suggestions
     if len(words) > 1:
@@ -151,6 +154,7 @@ def trigram_suggestions(words):
         suggestions = sample(common_starting_words, new_word_pool_size)
 
     return suggestions
+
 
 def calculate_perplexity(input_text):
     # Tokenize the current input text
@@ -169,7 +173,7 @@ def calculate_perplexity(input_text):
 
     # For subsequent words, use bigram probabilities with Laplace smoothing.
     for i in range(1, len(words)):
-        prev = words[i-1]
+        prev = words[i - 1]
         curr = words[i]
         bigram_count = bigrams_counts.get((prev, curr), 0)
         unigram_count = token_counts.get(prev, 0)
@@ -182,21 +186,37 @@ def calculate_perplexity(input_text):
     perplexity = math.exp(-avg_log_prob)
     return perplexity
 
+
 def main():
     line = 0
+    max_length = input("Maximum length of the generated text (q to quit): ").lower().strip()
+    if max_length == "q":
+        print("Exiting...")
+    try:
+        max_length = int(max_length)
+    except ValueError:
+        max_length = 50
+        print(f"Invalid value, using {max_length}...")
+
     while True:
-        max_length = input("Maximum length of the generated text (q to quit): ").lower().strip()
-        if max_length == "q":
-            print("Exiting...")
-            break
+        # First starting word
         try:
-            max_length = int(max_length)
+            chosen_first_word = input("Choose the first word (q to quit): ").lower().strip()
+            if not chosen_first_word:
+                print("Random first word...")
+                text = [sample(common_starting_words, 1)[0]]
+            elif chosen_first_word == "q":
+                print("Exiting...")
+                break
+            else:
+                if chosen_first_word not in token_counts:
+                    raise ValueError("Invalid first word.")
+                text = [chosen_first_word]
         except ValueError:
-            max_length = 50
-            print(f"Invalid value, using {max_length}...")
+            print("Invalid value, using random first word...")
+            text = [sample(common_starting_words, 1)[0]]
 
         # Generate text
-        text = [sample(common_starting_words, 1)[0]]
         for i in range(1, max_length):
             if len(text) == 1:
                 suggestions = bigram_suggestions(text)
@@ -217,6 +237,7 @@ def main():
         print(f"{line} perplexity {calculate_perplexity(full_text)}:")
         print(full_text)
         print("\n")
+
 
 if __name__ == "__main__":
     main()
