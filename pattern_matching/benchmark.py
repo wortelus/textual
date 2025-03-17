@@ -28,21 +28,37 @@ n = 1000
 m = 50
 print(f"Alphabetický text n={n}, m={m} * A")
 text = ''.join(random.choice(string.ascii_uppercase) for _ in range(n))
-pattern = 'A' * n
+pattern = 'A' * m
 run_print(text, pattern)
 
 n = 1000
-m = "AGCTAGCT"
+m = "AGCT"
 print(f"DNA test n={n}, m={m}")
 text = ''.join(random.choice(['A', 'C', 'G', 'T']) for _ in range(n))
 pattern = m
 run_print(text, pattern)
 
 n = 1000
-m = 50
+m = 3
 print(f"AAAAA... text a AAAAA....B pattern n={n}, m={m}")
-text = "a" * n
+text = ''.join(random.choice(['a', 'b']) for _ in range(n))
 pattern = "a" * (m - 1) + "b"
+
+run_print(text, pattern)
+
+n = 1000
+m = 4
+print(f"Náhodný alpphabetický text n={n}, a ABCD * m={m}")
+text = ''.join(random.choice(string.ascii_lowercase) for _ in range(n))
+pattern = "ABCD" * m
+
+run_print(text, pattern)
+
+n = 1000
+m = 4
+print(f"Náhodný a,b,c text n={n}, a ABCD * m={m}")
+text = ''.join(random.choice(['a', 'b', 'c']) for _ in range(n))
+pattern = "abc" * m
 
 run_print(text, pattern)
 
