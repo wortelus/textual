@@ -1,6 +1,6 @@
 import numpy as np
 
-from tf_idf import calculate_tf, calculate_tf_idf
+from tf_idf import calculate_tf, calculate_tf_idf, load_docs
 
 
 def doc_to_vector(tf_idf, vocab_index):
@@ -17,8 +17,10 @@ def cosine_similarity(vec1, vec2):
     return dot / (norm1 * norm2) if norm1 and norm2 else 0
 
 def main():
-    tf_documents = calculate_tf()
+    docs = load_docs()
+    tf_documents = calculate_tf(docs)
     tf_idf_documents = calculate_tf_idf(tf_documents)
+    # tf_idf_documents = tf_documents
 
     # vytvoření slovníku všech unikátních termů ze všech dokumentů
     # vocab - list unikátních termů

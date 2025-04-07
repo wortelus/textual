@@ -72,6 +72,9 @@ def calculate_tf_idf(tf_documents):
         idf[token] = math.log(docs_count / df_t)
 
     # Výpočet tf-idf pro každý dokument
+    # tf-idf = tf * idf
+    # pro jeden dokument:
+    # jak často je slovo v daném dokumentu * čím vzácněji se vyskytuje v celém korpusu
     tf_idf_documents = []
     for tf in tf_documents:
         tf_idf = {}
