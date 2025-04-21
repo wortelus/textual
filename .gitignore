@@ -1,3 +1,10 @@
 .idea/
 
 opus.nlpl.eu/
+
+# translator files
+translator/loss.png
+translator/*.ann
+translator/*.pkl
+cc.*.vec*
+cs-en*.txt
