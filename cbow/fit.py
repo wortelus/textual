@@ -93,7 +93,7 @@ def fit(vocab: list,
 
         epoch_duration = time.time() - epoch_start_time
         avg_epoch_loss = total_epoch_loss / len(indexed_pairs)
-        print(f"--- Epocha {epoch + 1} dokončena za {epoch_duration:.2f}s. Průměrná ztráta: {avg_epoch_loss:.4f} ---")
+        print(f"Epocha {epoch + 1} dokončena za {epoch_duration:.2f}s. Průměrná ztráta: {avg_epoch_loss:.4f}")
 
     print("Trénink dokončen.")
     return E, W, b
