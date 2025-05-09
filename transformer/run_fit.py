@@ -2,17 +2,18 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from datasets import load_dataset
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, FlaxT5Model
 import math
-import time  # Pro měření času epoch
+import time
 
-from transformer.fit import train_epoch, evaluate_epoch
-from transformer.load import load_files
+from transformer.fit import train_epoch, evaluate_epoch, validation_loop
 from transformer.model.seq2seq import Seq2SeqTransformer
 
 # tokenizer
 MODEL_NAME_FOR_TOKENIZER = "t5-small"
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME_FOR_TOKENIZER)
+t5_model = FlaxT5Model.from_pretrained(f"google-t5/t5-small")
+
 PAD_IDX = tokenizer.pad_token_id
 SRC_VOCAB_SIZE = tokenizer.vocab_size
 TGT_VOCAB_SIZE = tokenizer.vocab_size
@@ -71,9 +72,6 @@ def preprocess_function(data):
     decoder_input_ids_batch = []
 
     for label_ids in model_inputs["labels"]:
-        # Vytvoříme sekvenci začínající PAD_IDX (BOS pro T5)
-        # a pokračující label_ids bez posledního tokenu.
-        # Musí mít stejnou délku jako label_ids (MAX_TGT_SEQ_LEN)
         shifted_labels = [PAD_IDX] + label_ids[:-1]
         decoder_input_ids_batch.append(shifted_labels)
 
@@ -108,6 +106,7 @@ model = Seq2SeqTransformer(
     dim_feedforward=FFN_HID_DIM,
     dropout=DROPOUT,
     max_model_seq_len=MAX_MODEL_SEQ_LEN,
+    pad_idx=PAD_IDX,
     batch_first=True
 ).to(DEVICE)
 
@@ -131,23 +130,40 @@ torch.autograd.set_detect_anomaly(True)
 #
 # TRÉNOVACÍ SMYČKA
 #
-best_val_loss = float("inf")
 print("Začínám trénink...")
-for epoch in range(1, NUM_EPOCHS + 1):
-    start_time = time.time()
-    train_loss = train_epoch(model, train_dataloader, optimizer, loss_func, DEVICE)
-    val_loss = evaluate_epoch(model, val_dataloader, loss_func, DEVICE)
-    epoch_time = time.time() - start_time
+def train_transformer(model, data_loader, criterion, optimizer, num_epochs=10):
+    model.train()
+    best_val_loss = float("inf")
+    for epoch in range(num_epochs):
+        total_loss = 0
+        for batch in data_loader:
+            src, tgt = batch["input_ids"].to(DEVICE), batch["labels"].to(DEVICE)
+            tgt_input = tgt[:, :-1]
+            tgt_output = tgt[:, 1:]
 
-    print(f"Epoch {epoch}/{NUM_EPOCHS}, "
-          f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
-          f"Time: {epoch_time:.2f}s")
+            # Forward pass
+            optimizer.zero_grad()
+            predictions = model(src, tgt_input)
+            loss = criterion(predictions.transpose(1, 2), tgt_output)
 
-    # aktualizace scheduleru
-    scheduler.step(val_loss)
+            # Backward pass and optimization
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
 
-    # Ukládání modelu
-    best_val_loss = val_loss
-    torch.save(model.state_dict(), f"epoch_{epoch}_val_loss_{val_loss:.4f}.pt")
+            val_loss = validation_loop(model, val_dataloader, loss_func, DEVICE)
+            print(f"validace loss: {val_loss:.4f}")
 
+            print(f"Epoch {epoch}/{NUM_EPOCHS}, "
+                  f"Train Loss: {loss.item():.4f}")
+
+            # Ukládání modelu
+            # if val_loss < best_val_loss:
+            #     print(f"Ukládám model s nejlepší validací: {val_loss:.4f}")
+            #     best_val_loss = val_loss
+            #     torch.save(model.state_dict(), f"epoch_{epoch}_val_loss_{val_loss:.4f}.pt")
+
+        print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {total_loss / len(data_loader)}")
+
+train_transformer(model, train_dataloader, loss_func, optimizer)
 print("Trénink dokončen.")

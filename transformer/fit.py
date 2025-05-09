@@ -48,3 +48,28 @@ def evaluate_epoch(model, dataloader, loss_func, device):
             loss = loss_func(logits.reshape(-1, logits.shape[-1]), labels.reshape(-1))
             total_loss += loss.item()
     return total_loss / len(dataloader)
+
+
+def validation_loop(model, dataloader, loss_fn, device):
+    """
+    Method from "A detailed guide to Pytorch's nn.Transformer() module.", by
+    Daniel Melchor: https://medium.com/@danielmelchor/a-detailed-guide-to-pytorchs-nn-transformer-module-c80afbc9ffb1
+    """
+
+    model.eval()
+    total_loss = 0
+
+    with torch.no_grad():
+        for batch in dataloader:
+            X, y = batch["input_ids"].to(device), batch["labels"].to(device)
+            X, y = torch.tensor(X, dtype=torch.long, device=device), torch.tensor(y, dtype=torch.long, device=device)
+
+            y_input = y[:, :-1]
+            y_expected = y[:, 1:]
+
+            pred = model(X, y_input)
+
+            loss = loss_fn(pred.transpose(1, 2), y_expected)
+            total_loss += loss.detach().item()
+
+    return total_loss / len(dataloader)

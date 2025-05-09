@@ -17,7 +17,7 @@ def load_trained_model(model_path, device):
         num_encoder_layers=NUM_ENCODER_LAYERS,
         num_decoder_layers=NUM_DECODER_LAYERS,
         emb_size=EMB_SIZE,
-        nhead=NHEAD,
+        num_heads=NHEAD,
         src_vocab_size=SRC_VOCAB_SIZE,
         tgt_vocab_size=TGT_VOCAB_SIZE,
         dim_feedforward=FFN_HID_DIM,
