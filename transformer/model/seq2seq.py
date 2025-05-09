@@ -44,9 +44,9 @@ class Seq2SeqTransformer(nn.Module):
         # ref: https://docs.pytorch.org/docs/stable/generated/torch.nn.Transformer.html#torch.nn.Transformer.generate_square_subsequent_mask
 
         mask = torch.tril(torch.ones(size, size, device=device, dtype=torch.float), diagonal=0)
-        # nuly v horní části matice na -inf
+        # nuly v horní části matice na -inf/True (torch chce same type pro masky)
         mask = mask.masked_fill(mask == 0, float('-inf'))
-        # jedničky v dolní části matice na 0
+        # jedničky v dolní části matice na 0/False (torch chce same type pro masky)
         mask = mask.masked_fill(mask == 1, float(0.0))
 
         return mask
@@ -65,8 +65,9 @@ class Seq2SeqTransformer(nn.Module):
         device = src.device
 
         # casual (look-ahead) maska pro dekodér
+        # [tgt_seq_len, tgt_seq_len]
         tgt_seq_len = tgt.shape[1]
-        tgt_mask = self._generate_square_subsequent_mask(tgt_seq_len, device)  # Shape: [tgt_seq_len, tgt_seq_len]
+        tgt_mask = self._generate_square_subsequent_mask(tgt_seq_len, device)
 
         # padding masky
         # [batch_size, src_seq_len]
@@ -96,17 +97,18 @@ class Seq2SeqTransformer(nn.Module):
     # Metody pro inferenci (generování) - pokud byste je chtěli implementovat později
     def encode(self, src: torch.Tensor):
         src_padding_mask = self._create_padding_mask(src)
-        src_emb = self.positional_encoding(self.src_tok_emb(src))
+        src_emb = self.positional_encoding(self.src_embedding(src))
 
         # Pro batch_first=True, encoder očekává src: (N,S,E), src_key_padding_mask: (N,S)
         return self.transformer.encoder(src_emb, src_key_padding_mask=src_padding_mask)
 
-    def decode(self, tgt: torch.Tensor, memory: torch.Tensor,
-               tgt_mask: torch.Tensor,  # kauzální maska
+    def decode(self, tgt: torch.Tensor,
+               memory: torch.Tensor,
+               tgt_mask: torch.Tensor,
                memory_key_padding_mask: torch.Tensor = None):
         # padding maska pro memory (z enkodéru)
         tgt_padding_mask = self._create_padding_mask(tgt)
-        tgt_emb = self.positional_encoding(self.tgt_tok_emb(tgt))
+        tgt_emb = self.positional_encoding(self.tgt_embedding(tgt))
 
         # Pro batch_first=True, decoder očekává:
         # tgt: (N,T,E), memory: (N,S,E)

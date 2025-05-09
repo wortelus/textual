@@ -37,7 +37,9 @@ def load_samsum(train_size: int,
         # statistiky datasetu
         dataset_stats(small_train_dataset, small_val_dataset, small_test_dataset)
 
-    preprocess_fn = partial(preprocess_function, tokenizer=tokenizer, max_src_seq_len=max_src_seq_len,
+    preprocess_fn = partial(preprocess_function,
+                            tokenizer=tokenizer,
+                            max_src_seq_len=max_src_seq_len,
                             max_tgt_seq_len=max_tgt_seq_len,
                             pad_idx=pad_idx)
 
