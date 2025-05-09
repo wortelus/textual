@@ -13,7 +13,7 @@ class TokenEmbedding(nn.Module):
         self.emb_size = emb_size
 
     def forward(self, tokens: torch.Tensor):
-        # násobení sqrt(emb_size) je běžná praxe
+        # násobení sqrt(emb_size) je běžná praxe dle 'Attention is All You Need'
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 
