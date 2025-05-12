@@ -49,16 +49,16 @@ def fit(vocab: list,
             # update gradientu pro W a b
             #
 
-            # základní gradientní signál
+            # ∂L/∂z - základní gradientní signál
             # (1, vocab_size)
             grad_z = y_predicted_probs - y_true_one_hot
 
-            # gradient ztráty vzhledem k matici W
+            # ∂z/∂W - gradient ztráty vzhledem k matici W
             # h.T: (embedding_dim, 1) @ grad_z: (1, vocab_size)
             # (embedding_dim, vocab_size)
             grad_W_out = np.dot(v_context.T, grad_z)
 
-            # gradient ztráty vzhledem k vektoru bias
+            # ∂z/∂b - gradient ztráty vzhledem k vektoru bias
             # (1, vocab_size)
             grad_b_out = grad_z
 
@@ -70,7 +70,7 @@ def fit(vocab: list,
             # update gradientu pro E
             #
 
-            # gradient ztráty vzhledem k průměrnému kontextovému vektoru h (dh)
+            # ∂L/∂h - gradient ztráty vzhledem k průměrnému kontextovému vektoru h/v_context (dh)
             # grad_z: (1, vocab_size) @ W_out.T: (vocab_size, embedding_dim)
             # (1, embedding_dim)
             grad_h = np.dot(grad_z, W.T)
@@ -81,6 +81,7 @@ def fit(vocab: list,
             grad_E_for_context_word = grad_h / len(context_idxs)
 
             # postupně aktualizujeme embeddingy kontextových slov
+            # ∂L/∂e_i = ∂L/∂h * ∂h/∂e_i = ∂L/∂h / 1/N (N = počet kontextových slov)
             for word_idx_in_context in context_idxs:
                 E[word_idx_in_context, :] -= (
                         learning_rate * grad_E_for_context_word.squeeze())  # .squeeze() odstraní (1,) dimenzi
