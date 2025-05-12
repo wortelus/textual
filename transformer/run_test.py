@@ -1,6 +1,8 @@
 import torch
 import os
 
+from rouge_score import rouge_scorer
+
 from transformer.model.seq2seq import Seq2SeqTransformer
 from transformer.processing.dataset import load_samsum
 from transformer.processing.tokenizer import get_tokenizer
@@ -9,9 +11,11 @@ from transformer.const import NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE, 
     MAX_MODEL_SEQ_LEN, MAX_SRC_SEQ_LEN, MAX_TGT_SEQ_LEN
 
 def main():
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2'], use_stemmer=True)
+
     # tokenizer
     tokenizer, pad_idx, vocab_size = get_tokenizer()
-    tokenized_train, tokenized_val, tokenized_test = load_samsum(train_size=1, val_size=1, test_size=20,
+    _, _, tokenized_test = load_samsum(train_size=1, val_size=1, test_size=20,
                                                                  tokenizer=tokenizer,
                                                                  max_src_seq_len=MAX_SRC_SEQ_LEN,
                                                                  max_tgt_seq_len=MAX_TGT_SEQ_LEN,
@@ -21,7 +25,7 @@ def main():
     # available device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    checkpoint_file_path = "checkpoint_last_epoch_2_val_loss_4.9016.3490.pth"
+    checkpoint_file_path = "first_train/checkpoint_last_epoch_7_val_loss_4.4270.pth"
     if not os.path.isfile(checkpoint_file_path):
         print(f"Chyba: Soubor checkpointu nenalezen na {checkpoint_file_path}")
 
@@ -57,20 +61,60 @@ def main():
     model.to(device)
 
     model.eval()
-    total_test_loss = 0
 
+    sos_idx = pad_idx
+    eos_idx = tokenizer.eos_token_id
+
+    r1_list = []
+    r2_list = []
     with torch.no_grad():
-        for batch in tokenized_test:
-            src = batch['input_ids'].to(device)
-            tgt_input = batch['decoder_input_ids'].to(device)
-            predictions = model(src.unsqueeze(0), tgt_input.unsqueeze(0))
-            predicted_ids = torch.argmax(predictions, dim=-1)
+        for i, batch in enumerate(tokenized_test):
+            src = batch['input_ids'].unsqueeze(0).to(device)
+
+            # Smyčka pro generování token po tokenu
+            decoder_input = torch.tensor([[sos_idx]], dtype=torch.long, device=device)
+            for step in range(MAX_TGT_SEQ_LEN):
+                predictions = model(src, decoder_input)
+
+                # predikované "pravděpodobnosti" následujícího tokenu
+                # (batch, seq_len, vocab) -> predictions[:, -1, :]
+                last_token_logits = predictions[:, -1, :]
+
+                # greedy (argmax) výběr tokenu a přidání do 'decoder_input'
+                predicted_token_id = torch.argmax(last_token_logits, dim=-1).unsqueeze(0)
+                decoder_input = torch.cat([decoder_input, predicted_token_id], dim=1)
+
+                # eos token ? pokud ano -> break
+                if predicted_token_id.item() == eos_idx:
+                    break
+
+            # dekódování predikovaného shrnutí
+            # skipneme první token (SOS)
+            generated_ids = decoder_input[0, 1:].tolist()
+            predicted_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+            # dekódování originálního shrnutí (labels)
+            original_ids_for_decoding = batch['labels'].tolist()
+            original_text = tokenizer.decode(original_ids_for_decoding, skip_special_tokens=True)
+
             print("-" * 30)
-            for i in range(predicted_ids.size(0)):
-                predicted_text = tokenizer.decode(predicted_ids[i].tolist(), skip_special_tokens=True)
-                original_text = tokenizer.decode(batch['labels'], skip_special_tokens=True)
-                print(f"Predicted: {predicted_text}")
-                print(f"Original: {original_text}")
+            print(f"Příklad {i + 1}:")
+            print(f"Predicted: {predicted_text}")
+            print(f"Original:  {original_text}")
+
+            individual_scores = scorer.score(original_text, predicted_text)
+            r1 = individual_scores['rouge1'].fmeasure
+            r2 = individual_scores['rouge2'].fmeasure
+            r1_list.append(r1)
+            r2_list.append(r2)
+            print(f"ROUGE-1 F1: {r1:.4f}")
+            print(f"ROUGE-2 F1: {r2:.4f}")
+
+    avg_r1 = sum(r1_list) / len(r1_list)
+    avg_r2 = sum(r2_list) / len(r2_list)
+    print(f"Průměrný ROUGE-1 F1: {avg_r1:.4f}")
+    print(f"Průměrný ROUGE-2 F1: {avg_r2:.4f}")
+
 
 if __name__ == "__main__":
     main()

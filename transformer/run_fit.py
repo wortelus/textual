@@ -59,6 +59,10 @@ def main():
     # snížení learning rate, pokud se validace nezlepšuje
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=2, factor=0.1, verbose=True)
 
+    # RESUME ?
+    # checkpoint_filename = "first_train/checkpoint_last_epoch_7_val_loss_4.4270.pth"
+    checkpoint_filename = None
+
     # TRÉNOVACÍ SMYČKA
     num_epochs = 20
     print("trénování...")
@@ -69,7 +73,8 @@ def main():
                       scheduler=scheduler,
                       num_epochs=num_epochs,
                       val_dataloader=val_dataloader,
-                      device=device)
+                      device=device,
+                      checkpoint_filename=checkpoint_filename,)
 
     print("hotovo")
 

@@ -67,7 +67,8 @@ class Seq2SeqTransformer(nn.Module):
         # casual (look-ahead) maska pro dekodér
         # [tgt_seq_len, tgt_seq_len]
         tgt_seq_len = tgt.shape[1]
-        tgt_mask = self._generate_square_subsequent_mask(tgt_seq_len, device)
+        # tgt_mask = self._generate_square_subsequent_mask(tgt_seq_len, device)
+        tgt_mask = nn.Transformer.generate_square_subsequent_mask(tgt_seq_len).to(device)
 
         # padding masky
         # [batch_size, src_seq_len]
